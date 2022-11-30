@@ -84,7 +84,7 @@ const displayChart = async () => {
         .append('text')
         .attr('id', 'title')
         .attr('x', width / 2)
-        .attr('y', padding / 1.5)
+        .attr('y', 20)
         .attr('text-anchor', 'middle')
         .style('font-size', '1rem')
         .text('Monthly Global Land-Surface Temperature');
@@ -93,24 +93,29 @@ const displayChart = async () => {
         .append('text')
         .attr('id', 'description')
         .attr('x', width / 2)
-        .attr('y', padding)
+        .attr('y', 38)
         .attr('text-anchor', 'middle')
-        .style('font-size', '1rem')
+        .style('font-size', '.9rem')
         .text(
           `${firstYear.year} - ${lastYear.year}: base temperature ${baseTemperature}℃`
         );
 
       const xScale = d3
-        .scaleLinear()
+        .scaleTime()
         .domain([firstYear.year, lastYear.year])
         .range([padding, width - padding]);
-      console.log(d3.range(12));
+
       const yScale = d3
         .scaleBand()
         .domain(d3.range(13))
         .rangeRound([padding, height - padding]);
 
-      const xAxis = d3.axisBottom(xScale);
+      const xAxis = d3
+        .axisBottom(xScale)
+        .tickFormat(d3.format('d'))
+        .ticks(20)
+        .tickSize(10, 1);
+
       const yAxis = d3
         .axisLeft(yScale)
         .tickValues(yScale.domain())
@@ -126,12 +131,14 @@ const displayChart = async () => {
         .append('g')
         .attr('id', 'x-axis')
         .attr('transform', `translate(0, ${height - padding})`)
-        .call(xAxis);
+        .call(xAxis)
+        .attr('font-size', '.3rem');
       svg
         .append('g')
         .attr('id', 'y-axis')
         .attr('transform', `translate(${padding},0)`)
-        .call(yAxis);
+        .call(yAxis)
+        .attr('font-size', '.3rem');
 
       svg
         .selectAll('rect')
