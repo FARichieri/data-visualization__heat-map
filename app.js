@@ -10,23 +10,9 @@ const displayChart = async () => {
       const firstYear = monthlyVariance[0];
       const lastYear = monthlyVariance[monthlyVariance.length - 1];
 
-      const width = 600;
-      const height = 280;
+      const width = 550;
+      const height = 250;
       const padding = 60;
-      const months = [
-        'December',
-        'January',
-        'February',
-        'March',
-        'April',
-        'May',
-        'June',
-        'July',
-        'August',
-        'September',
-        'October',
-        'November',
-      ];
 
       const colors = {
         darkblue: {
@@ -65,7 +51,7 @@ const displayChart = async () => {
           min: 10.6,
           max: 11.7,
         },
-        '#d73027': {
+        purple: {
           min: 11.7,
           max: 12.8,
         },
@@ -74,6 +60,21 @@ const displayChart = async () => {
           max: Infinity,
         },
       };
+
+      const months = [
+        'December',
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+      ];
 
       svg = d3
         .select('.container')
@@ -86,16 +87,16 @@ const displayChart = async () => {
         .attr('x', width / 2)
         .attr('y', 20)
         .attr('text-anchor', 'middle')
-        .style('font-size', '1rem')
+        .style('font-size', '.8rem')
         .text('Monthly Global Land-Surface Temperature');
 
       svg
         .append('text')
         .attr('id', 'description')
         .attr('x', width / 2)
-        .attr('y', 38)
+        .attr('y', 34)
         .attr('text-anchor', 'middle')
-        .style('font-size', '.9rem')
+        .style('font-size', '.7rem')
         .text(
           `${firstYear.year} - ${lastYear.year}: base temperature ${baseTemperature}℃`
         );
@@ -107,7 +108,7 @@ const displayChart = async () => {
 
       const yScale = d3
         .scaleBand()
-        .domain(d3.range(13))
+        .domain(d3.range(12))
         .rangeRound([padding, height - padding]);
 
       const xAxis = d3
@@ -141,16 +142,19 @@ const displayChart = async () => {
         .attr('font-size', '.3rem');
 
       svg
+        .append('g')
+        .attr('transform', `translate(${0},${0})`)
+        .attr('id', 'map')
         .selectAll('rect')
         .data(monthlyVariance)
         .enter()
         .append('rect')
         .attr('x', (d) => xScale(d.year))
-        .attr('y', (d) => yScale(d.month))
+        .attr('y', (d) => yScale(d.month - 1))
         .attr('width', (d, i) => 2)
-        .attr('height', 15)
+        .attr('height', 10)
         .attr('class', 'cell')
-        .attr('data-month', (d) => d.month)
+        .attr('data-month', (d) => d.month - 1)
         .attr('data-year', (d) => d.year)
         .attr('data-temp', (d) => baseTemperature + d.variance)
         .attr('fill', (d) => {
@@ -164,7 +168,47 @@ const displayChart = async () => {
               return colorMatched;
             }
           }
+        })
+        .on('mouseover', function (d, item) {
+          d3.select(this).transition().d3.duration('50').attr('opacity', '.85');
+          tooltip.transition().d3.duration('50').attr('opacity', 1);
         });
+
+      const legendWIth = width / 3;
+
+      const colorsData = Object.entries(colors).slice(1, 10);
+      const xScaleColors = d3
+        .scaleBand()
+        .domain(d3.range(colorsData.length))
+        .range([0, legendWIth]);
+
+      const xAxisColors = d3
+        .axisBottom(xScaleColors)
+        .tickFormat((d, i) => colorsData[i][1].min);
+
+      svg
+        .append('g')
+        .attr('transform', `translate(${padding},${height - 15})`)
+        .attr('id', 'legend')
+        .append('g')
+        .attr('class', 'axis-colors')
+        .call(xAxisColors)
+        .attr('font-size', '.3rem');
+
+      svg
+        .select('#legend')
+        .append('g')
+        .attr('id', 'colors')
+        .selectAll('rect')
+        .data(colorsData.slice(0, 8))
+        .enter()
+        .append('rect')
+        .attr('transform', `translate(${10}, ${-9.5})`)
+        .attr('x', (d, i) => xScaleColors(i))
+        .attr('y', 0)
+        .attr('width', legendWIth / colorsData.length)
+        .attr('height', 10)
+        .attr('fill', (d, i) => d[0]);
     })
     .then(hideLoader())
     .catch((error) => console.log(error));

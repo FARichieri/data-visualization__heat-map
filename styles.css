@@ -42,3 +42,11 @@ svg {
   width: 100%;
   padding: 0 10vw 0 5vw;
 }
+
+line {
+  stroke-width: 0.5px;
+}
+
+path {
+  stroke-width: 0.5px;
+}
