@@ -4,15 +4,16 @@ const displayChart = async () => {
   )
     .then((response) => response.json())
     .then((data) => {
+      data.monthlyVariance.forEach(function (val) {
+        val.month -= 1;
+      });
       const { baseTemperature, monthlyVariance } = data;
-      console.log({ baseTemperature });
-      console.log({ monthlyVariance });
-      const firstYear = monthlyVariance[0];
-      const lastYear = monthlyVariance[monthlyVariance.length - 1];
+      const firstYear = monthlyVariance[0].year;
+      const lastYear = monthlyVariance[monthlyVariance.length - 1].year;
 
       const width = 550;
       const height = 250;
-      const padding = 60;
+      const padding = 50;
 
       const colors = {
         darkblue: {
@@ -61,20 +62,18 @@ const displayChart = async () => {
         },
       };
 
-      const months = [
-        'December',
-        'January',
-        'February',
-        'March',
-        'April',
-        'May',
-        'June',
-        'July',
-        'August',
-        'September',
-        'October',
-        'November',
-      ];
+      const formatDate = (month) => {
+        const date = new Date();
+        date.setMonth(month);
+        const format = d3.timeFormat('%B');
+        return format(date);
+      };
+
+      const tooltip = d3
+        .select('.container')
+        .append('div')
+        .attr('id', 'tooltip')
+        .style('opacity', 0);
 
       svg = d3
         .select('.container')
@@ -85,76 +84,88 @@ const displayChart = async () => {
         .append('text')
         .attr('id', 'title')
         .attr('x', width / 2)
-        .attr('y', 20)
+        .attr('y', 25)
         .attr('text-anchor', 'middle')
-        .style('font-size', '.8rem')
+        .style('font-size', '.7rem')
         .text('Monthly Global Land-Surface Temperature');
 
       svg
         .append('text')
         .attr('id', 'description')
         .attr('x', width / 2)
-        .attr('y', 34)
+        .attr('y', 38)
         .attr('text-anchor', 'middle')
-        .style('font-size', '.7rem')
+        .style('font-size', '.6rem')
         .text(
-          `${firstYear.year} - ${lastYear.year}: base temperature ${baseTemperature}℃`
+          `${firstYear} - ${lastYear}: base temperature ${baseTemperature}℃`
         );
 
       const xScale = d3
-        .scaleTime()
-        .domain([firstYear.year, lastYear.year])
+        .scaleBand()
+        .domain(monthlyVariance.map((d) => d.year))
         .range([padding, width - padding]);
 
       const yScale = d3
         .scaleBand()
         .domain(d3.range(12))
-        .rangeRound([padding, height - padding]);
+        .range([padding, height - padding]);
 
       const xAxis = d3
         .axisBottom(xScale)
-        .tickFormat(d3.format('d'))
-        .ticks(20)
-        .tickSize(10, 1);
+        .tickValues(xScale.domain().filter((year) => year % 10 === 0))
+        .tickFormat((year) => {
+          const date = new Date(0);
+          date.setUTCFullYear(year);
+          var format = d3.timeFormat('%Y');
+          return format(date);
+        })
+        .tickSize(5, 1);
 
       const yAxis = d3
         .axisLeft(yScale)
-        .tickValues(yScale.domain())
-        .tickFormat((month) => {
-          const date = new Date(0);
-          date.setUTCMonth(month);
-          const format = d3.timeFormat('%B');
-          return format(date);
-        })
-        .tickSize(10, 1);
+        .tickFormat((month) => formatDate(month))
+        .tickSize(5, 1);
 
       svg
         .append('g')
         .attr('id', 'x-axis')
         .attr('transform', `translate(0, ${height - padding})`)
         .call(xAxis)
-        .attr('font-size', '.3rem');
+        .attr('font-size', '.3rem')
+        .append('text')
+        .text('Years')
+        .style('text-anchor', 'middle')
+        .attr('transform', `translate(${width / 2}, ${padding / 2.5})`)
+        .attr('fill', 'black');
+
       svg
         .append('g')
         .attr('id', 'y-axis')
         .attr('transform', `translate(${padding},0)`)
         .call(yAxis)
-        .attr('font-size', '.3rem');
+        .attr('font-size', '.3rem')
+        .append('text')
+        .text('Months')
+        .style('text-anchor', 'middle')
+        .attr(
+          'transform',
+          `translate(-${padding / 2 + 10}, ${height / 2}) rotate(-90)`
+        )
+        .attr('fill', 'black');
 
       svg
         .append('g')
-        .attr('transform', `translate(${0},${0})`)
         .attr('id', 'map')
         .selectAll('rect')
         .data(monthlyVariance)
         .enter()
         .append('rect')
-        .attr('x', (d) => xScale(d.year))
-        .attr('y', (d) => yScale(d.month - 1))
-        .attr('width', (d, i) => 2)
-        .attr('height', 10)
         .attr('class', 'cell')
-        .attr('data-month', (d) => d.month - 1)
+        .attr('x', (d) => xScale(d.year) + 1)
+        .attr('y', (d) => yScale(d.month))
+        .attr('width', (d) => xScale.bandwidth(d.year))
+        .attr('height', (d) => yScale.bandwidth(d.month))
+        .attr('data-month', (d) => d.month)
         .attr('data-year', (d) => d.year)
         .attr('data-temp', (d) => baseTemperature + d.variance)
         .attr('fill', (d) => {
@@ -170,11 +181,35 @@ const displayChart = async () => {
           }
         })
         .on('mouseover', function (d, item) {
-          d3.select(this).transition().d3.duration('50').attr('opacity', '.85');
-          tooltip.transition().d3.duration('50').attr('opacity', 1);
+          d3.select(this)
+            .transition()
+            .duration('50')
+            .attr('opacity', '.50')
+            .attr('stroke', 'black')
+            .attr('stroke-width', '0.9');
+          tooltip.transition().duration(100).style('opacity', 1);
+          tooltip
+            .html(
+              `
+          ${item.year} - ${formatDate(item.month)} </br> ${parseFloat(
+                (baseTemperature + item.variance).toFixed(1)
+              )}°C </br> ${parseFloat(item.variance).toFixed(1)}°C
+        `
+            )
+            .attr('data-year', item.year)
+            .style('left', d.pageX + 10 + 'px')
+            .style('top', d.pageY + 10 + 'px');
+        })
+        .on('mouseout', function () {
+          d3.select(this)
+            .transition()
+            .duration('50')
+            .attr('opacity', '1')
+            .attr('stroke', 'none');
+          tooltip.transition().duration(100).style('opacity', 0);
         });
 
-      const legendWIth = width / 3;
+      const legendWIth = width / 4;
 
       const colorsData = Object.entries(colors).slice(1, 10);
       const xScaleColors = d3
@@ -184,7 +219,9 @@ const displayChart = async () => {
 
       const xAxisColors = d3
         .axisBottom(xScaleColors)
-        .tickFormat((d, i) => colorsData[i][1].min);
+        .tickFormat((d, i) => colorsData[i][1].min)
+        .tickSize(5, 1)
+        .tickPadding(1.5);
 
       svg
         .append('g')
@@ -193,7 +230,7 @@ const displayChart = async () => {
         .append('g')
         .attr('class', 'axis-colors')
         .call(xAxisColors)
-        .attr('font-size', '.3rem');
+        .attr('font-size', '.25rem');
 
       svg
         .select('#legend')
@@ -203,12 +240,14 @@ const displayChart = async () => {
         .data(colorsData.slice(0, 8))
         .enter()
         .append('rect')
-        .attr('transform', `translate(${10}, ${-9.5})`)
+        .attr('transform', `translate(${7.65}, ${-9.5})`)
         .attr('x', (d, i) => xScaleColors(i))
         .attr('y', 0)
         .attr('width', legendWIth / colorsData.length)
         .attr('height', 10)
-        .attr('fill', (d, i) => d[0]);
+        .attr('fill', (d, i) => d[0])
+        .attr('stroke', 'black')
+        .attr('stroke-width', '.2');
     })
     .then(hideLoader())
     .catch((error) => console.log(error));
